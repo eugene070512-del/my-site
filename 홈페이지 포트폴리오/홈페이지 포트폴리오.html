@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>로컬마켓</title>
+<meta name="description" content="중고거래 SPA 포트폴리오. 전역 검색/필터/정렬, 카테고리 패널, 상세/판매자 페이지, 실사용 흐름용 채팅·거래방, 무한스크롤, 찜/최근본 저장.">
+<style>
+  :root{
+    --ink:#0f172a;--sub:#64748b;--bg:#f3f5f8;--line:#e5e8eb;
+    --panel:#fff;--container:1180px;--accent:#22c55e;
+    --brand:linear-gradient(135deg,#22c55e 0%,#f97316 100%);
+    --shadow:0 14px 36px rgba(2,6,23,.10);
+    --radius:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,Noto Sans KR,Apple SD Gothic Neo,sans-serif}
+  a{color:inherit;text-decoration:none}
+  img{display:block;max-width:100%}
+  .container{max-width:var(--container);margin:0 auto;padding:0 18px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;font-weight:800;cursor:pointer}
+  .btn.primary{background:var(--brand);border-color:transparent;color:#fff}
+  .btn.ghost{background:#fff;border:1px solid var(--line)}
+  .btn.icon{padding:8px 10px;border-radius:999px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:12px}
+  .chip.active{background:#f8fffa;border-color:#c7f0d6}
+  .shadow{box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .section-title{display:flex;justify-content:space-between;align-items:end;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:14px}
+  .section-title h2{margin:0;font-size:22px}
+
+  /* Topbar */
+  .topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .topbar .inner{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 0}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:900}
+  .badge{width:34px;height:34px;border-radius:10px;background:var(--brand);display:grid;place-items:center;color:#fff}
+  .search{flex:1;max-width:740px;display:flex;align-items:center;border:1px solid var(--line);border-radius:999px;padding:8px 12px;background:#fff;gap:8px}
+  .search input{flex:1;border:0;background:transparent;outline:none;font-size:15px;padding:6px}
+  .search input::placeholder{color:#9aa7b3}
+
+  /* Landing */
+  .landing{min-height:88svh;display:grid;place-items:center;background:
+    radial-gradient(1200px 260px at 15% 0%, #e9fff2 0%, rgba(233,255,242,0) 60%),
+    radial-gradient(1200px 260px at 85% 0%, #fff0e5 0%, rgba(255,240,229,0) 60%),
+    linear-gradient(#fff,#f5f7fb);border-bottom:1px solid var(--line)}
+  .hero{display:grid;grid-template-columns:1.2fr 1fr;gap:26px;align-items:center}
+  .headline{margin:0;font-size:52px;line-height:1.08}
+  .subtitle{margin:12px 0 20px;color:#334155}
+  .phone{aspect-ratio:9/16;border:1px solid #e2e8f0;border-radius:26px;background:#fff;overflow:hidden;transform:rotate(-6deg);box-shadow:0 24px 60px rgba(2,6,23,.15)}
+  .phone-in{width:92%;height:92%;margin:4%;border:1px solid #e5e7eb;border-radius:22px;overflow:hidden;display:grid;grid-template-rows:auto 1fr;gap:10px;background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,.25))}
+  .phone-top{padding:10px 14px;display:flex;justify-content:space-between;font-weight:900}
+  .slot{border-radius:18px;overflow:hidden}
+
+  /* Main shell */
+  main{margin-top:26px}
+  .shell{display:grid;grid-template-columns:280px 1fr;gap:18px}
+
+  /* Facets */
+  .facet{display:grid;gap:8px}
+  .facet label{display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer}
+  .facet label:hover{background:#f8fafc}
+  .facet input{appearance:none;width:20px;height:20px;border-radius:50%;border:2px solid #cbd5e1;display:grid;place-items:center}
+  .facet input:checked{border-color:var(--accent);box-shadow:inset 0 0 0 6px var(--accent)}
+  .count{margin-left:auto;color:#94a3b8}
+
+/* 가격 컨트롤: 입력/버튼 규격 통일 */
+.controls .row input,
+.controls .row .btn {
+  height: 44px;
+  font-size: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0 12px;
+  box-sizing: border-box;
+}
+
+/* 입력창은 셀 꽉 채우기 */
+.controls .row input {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 버튼도 셀 꽉 채우기 */
+.controls .row .btn {
+  width: 100%;
+  background: #fff;
+  font-weight: 800;
+}
+
+/* (옵션) 숫자 입력 스피너 제거로 높이 균일화 */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; }
+
+
+  /* Goods grid */
+  .grid.goods{grid-template-columns:repeat(4,1fr)}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;transition:transform .12s}
+  .card:hover{transform:translateY(-3px)}
+  .thumb{position:relative;aspect-ratio:4/3;background:#eef2f7}
+  .thumb img{width:100%;height:100%;object-fit:cover}
+  .thumb.noimg{background:#e7ebf0}
+  .thumb.noimg::after{content:"전시 준비중";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.45);color:#fff;font-weight:900;border-radius:10px;padding:6px 10px}
+  .badge-corner{position:absolute;left:8px;top:8px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px 8px;font-size:12px}
+  .like{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px}
+  .meta{padding:12px}.price{font-weight:900;font-size:18px}.title{margin:6px 0 2px;font-weight:800}.desc{font-size:13px;color:var(--sub)}
+  #empty{display:none;padding:24px;text-align:center;border:1px dashed var(--line);border-radius:12px;background:#fff;color:#64748b}
+  #moreWrap{display:none;justify-content:center;margin-top:12px}
+
+  /* Detail */
+  #page-detail{display:none}
+  #page-detail.active{display:block}
+  .crumb{display:flex;gap:6px;font-size:13px;color:#6b7280;padding:8px 0 16px}
+  .detail{display:grid;grid-template-columns:1.05fr .95fr;gap:18px}
+  .gallery{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px}
+  .heroimg{aspect-ratio:4/3;border-radius:12px;background:#eef2f7;overflow:hidden}
+  .heroimg img{width:100%;height:100%;object-fit:cover}
+  .heroimg.noimg{display:grid;place-items:center;position:relative}
+  .heroimg.noimg::after{content:"전시 준비중";position:absolute;background:rgba(0,0,0,.45);color:#fff;font-weight:900;border-radius:10px;padding:8px 12px}
+  .thumbs{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:10px}
+  .thumbs button{border:1px solid var(--line);border-radius:10px;padding:0;background:#fff;overflow:hidden;cursor:pointer}
+  .side{display:grid;gap:12px}
+  .detail-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;position:relative}
+  .title.big{margin:0 0 8px;font-size:26px}
+  .price.big{font-size:28px;font-weight:900}
+  .detail-card h1,.detail-card .meta,.detail-card .priceRow,.detail-card .badges,.detail-card .seller{text-align:left}
+  .like-top{position:absolute;top:16px;right:16px;padding:8px 12px;border-radius:12px;line-height:1}
+  .priceRow{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .seller{margin-top:12px}
+  .seller-link{display:flex;gap:12px;align-items:center}
+  .avatar{width:48px;height:48px;border-radius:50%;border:1px solid var(--line);background:#e2e8f0;flex:0 0 auto;aspect-ratio:1/1}
+  .avatar.lg{width:72px;height:72px;aspect-ratio:1/1;border-radius:50%}
+  #sellerMeta{color:#64748b}
+
+  .tabs{margin-top:12px}
+  .tablist{display:flex;gap:6px;border-bottom:1px solid var(--line)}
+  .tab{appearance:none;background:#fff;border:1px solid var(--line);border-bottom:none;border-radius:10px 10px 0 0;padding:10px 12px;font-weight:800;cursor:pointer}
+  .tab[aria-selected="true"]{background:#f8fffa;border-color:#c7f0d6}
+  .tabpanel{display:none;border:1px solid var(--line);border-top:none;border-radius:0 12px 12px 12px;padding:14px;background:#fff}
+  .tabpanel.active{display:block}
+  .reviews .item{border-bottom:1px dashed #eaecef;padding:10px 0}
+  .stars{color:#f59e0b}
+  .qa .q{font-weight:800}
+  .qa .a{color:#334155}
+
+  .bottombar{display:none;position:sticky;bottom:0;background:rgba(255,255,255,.93);backdrop-filter:blur(6px);border-top:1px solid var(--line);padding:10px}
+  .bottombar .container{display:flex;gap:8px}
+  .bottombar .btn{flex:1}
+
+  /* Seller page */
+  #page-seller{display:none}
+  #page-seller.active{display:block}
+  .seller-head{display:flex;gap:14px;align-items:center}
+  .seller-title{margin:0}
+  .seller-stats{color:#64748b;margin-top:4px}
+  .seller-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+  /* Deal / Chat */
+  #page-deal{display:none}
+  #page-deal.active{display:block}
+  .deal-top{display:flex;gap:12px;align-items:center}
+  .deal-thumb{width:64px;height:64px;border-radius:12px;overflow:hidden;border:1px solid var(--line);flex:0 0 auto}
+  .deal-thumb img{width:100%;height:100%;object-fit:cover}
+  .deal-meta{color:#64748b}
+  .deal-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .chat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:12px;height:420px;display:flex;flex-direction:column}
+  .msgs{flex:1;overflow:auto;display:grid;gap:10px;padding-right:4px}
+  .msg{max-width:70%;padding:8px 10px;border:1px solid var(--line);border-radius:14px;line-height:1.4;word-break:break-word}
+  .msg.other{justify-self:start;background:#f8fafc}
+  .msg.me{justify-self:end;background:#f1fff6;border-color:#c7f0d6}
+  .composer{display:flex;gap:8px;margin-top:10px}
+  .composer input, .composer textarea{flex:1;border:1px solid var(--line);border-radius:10px;padding:10px}
+  .deal-form{display:grid;gap:8px;margin-top:10px}
+  .deal-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .deal-row .chip{cursor:pointer}
+
+  footer{margin-top:36px;border-top:1px solid var(--line);background:#fff}
+  .foot{padding:20px 0;color:#64748b}
+
+  @media (max-width:1100px){.grid.goods{grid-template-columns:repeat(3,1fr)}.headline{font-size:46px}}
+  @media (max-width:900px){.shell{grid-template-columns:1fr}.panel{position:sticky;top:64px}}
+  @media (max-width:768px){
+    .hero{grid-template-columns:1fr}.phone{transform:none;max-width:360px;margin:0 auto}
+    .grid.goods{grid-template-columns:repeat(2,1fr)}.detail{grid-template-columns:1fr}.bottombar{display:block}
+  }
+  @media (max-width:420px){.grid.goods{grid-template-columns:1fr}}
+
+/* ----- Detail card tidy ----- */
+.detail-card.tidy { padding:18px; }
+.detail-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.detail-head .title{ margin:0; line-height:1.15; }
+.location{ color:#64748b; margin-top:4px; }
+
+.like-top{ position:static; border-radius:999px; padding:8px 12px; }
+.like-top.icon{ font-weight:800; }
+
+.price.big{ font-size:32px; }
+.price-box{ display:flex; align-items:center; gap:12px; margin-top:10px; }
+
+.chip.tone{ background:#f8fffa; border-color:#c7f0d6; font-weight:700; }
+
+/* 배지들을 2~3열 그리드로 깔끔하게 */
+.pill-row{ display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:8px; margin-top:12px; }
+.pill-row .chip{ width:100%; justify-content:center; padding:8px 10px; border-color:#e5e7eb; background:#f8fafc; }
+
+/* 얇은 구분선 */
+.sep{ border:0; border-top:1px solid var(--line); margin:14px 0; }
+
+/* 판매자 카드 */
+.seller-card{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px;
+  padding:12px; border:1px solid var(--line); border-radius:12px; background:#fff; text-decoration:none; }
+.seller-card:hover{ box-shadow:var(--shadow); transform:translateY(-1px); transition:.12s; }
+.seller-info strong{ display:block; margin-bottom:2px; }
+.forward{ color:#94a3b8; font-size:22px; line-height:1; }
+
+/* CTA 버튼 2열 → 모바일 1열 */
+.cta-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+.btn.block{ width:100%; }
+
+@media (max-width:768px){
+  .pill-row{ grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .cta-row{ grid-template-columns:1fr; }
+}
+
+/* 아바타 찌그러짐 방지 (혹시 모를 케이스 커버) */
+.avatar, .avatar.lg{ aspect-ratio:1/1; border-radius:50%; overflow:hidden; }
+
+
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="container inner">
+    <a class="brand" href="#/"><span class="badge">M</span><span>마켓</span></a>
+    <form class="search" onsubmit="event.preventDefault();doSearch()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M11 4a7 7 0 105.292 12.292l3.707 3.707 1.414-1.414-3.707-3.707A7 7 0 0011 4z" fill="#64748b"/></svg>
+      <input id="q" type="search" placeholder=" ex 상품명, 지역"/>
+      <button class="btn" type="submit">검색</button>
+    </form>
+    <nav class="nav">
+      <a class="btn" href="#/market">둘러보기</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Landing -->
+<section id="landing" class="landing">
+  <div class="container hero">
+    <div>
+      <h1 class="headline">동네 중고거래,<br/>가볍고 안전하게</h1>
+      <p class="subtitle">지역별 중고거래 · 안전하고 신속한 거래</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn primary" href="#/market">지금 둘러보기</a>
+        <span class="chip">🔒 안전결제</span>
+        <span class="chip">✔ 동네 인증</span>
+      </div>
+    </div>
+    <div class="phone">
+      <div class="phone-in">
+        <div class="phone-top"><span>마켓</span><span style="font-size:12px;color:#334155">부산진구</span></div>
+        <div class="slot"><img src="landing.png" alt=""></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- LIST -->
+<main id="page-home" class="container" aria-labelledby="home-title" style="display:none">
+  <div class="shell">
+    <aside class="panel shadow">
+      <h3>카테고리</h3>
+      <div class="facet" id="facet-cats"></div>
+
+      <h3 style="margin-top:12px">가격(원)</h3>
+      <div class="controls">
+        <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <input id="minPrice" type="number" min="0" inputmode="numeric" placeholder="최소"/>
+          <input id="maxPrice" type="number" min="0" inputmode="numeric" placeholder="최대"/>
+        </div>
+        <div class="row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <button class="btn" id="applyPrice">적용</button>
+            <button class="btn" id="clearPrice">초기화</button>
+          </div>
+
+      <h3 style="margin-top:12px">정렬</h3>
+      <div class="facet" id="facet-sort">
+        <label><input type="radio" name="sort" value="rel" checked>정확도<span class="count"></span></label>
+        <label><input type="radio" name="sort" value="price_asc">가격 ⬆︎<span class="count"></span></label>
+        <label><input type="radio" name="sort" value="price_desc">가격 ⬇︎<span class="count"></span></label>
+        <label><input type="radio" name="sort" value="new">최신순<span class="count"></span></label>
+      </div>
+    </aside>
+
+    <section>
+      <header class="section-title">
+        <h2 id="resultTitle">전체 매물</h2>
+        <div style="display:flex;gap:8px;align-items:center">
+          <span id="resultInfo" class="chip">0건</span>
+          <button id="resetAll" class="btn">전체 초기화</button>
+        </div>
+      </header>
+      <div id="grid" class="grid goods"></div>
+      <div id="empty">조건에 맞는 결과가 없습니다.</div>
+      <div id="moreWrap"><button id="moreBtn" class="btn">더 보기</button></div>
+      <div id="sentinel" style="height:1px"></div>
+    </section>
+  </div>
+</main>
+
+<!-- DETAIL -->
+<main id="page-detail" class="container" aria-labelledby="detail-title">
+  <nav class="crumb">홈 · <span id="crumb-cat">카테고리</span> · <span id="crumb-title">상품</span></nav>
+  <div class="detail">
+    <div>
+      <section class="gallery panel">
+        <div class="heroimg" id="heroBox"><img id="heroImg" alt="대표 이미지" loading="lazy"></div>
+        <div class="thumbs" id="thumbs"></div>
+      </section>
+
+      <section class="tabs">
+        <div class="tablist" role="tablist" aria-label="상세 탭">
+          <button class="tab" role="tab" aria-selected="true" aria-controls="tab-over" id="tabbtn-over">개요</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-spec" id="tabbtn-spec">스펙</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rev" id="tabbtn-rev">리뷰</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-qa" id="tabbtn-qa">Q&amp;A</button>
+          <button class="tab" role="tab" aria-selected="false" aria-controls="tab-pol" id="tabbtn-pol">정책</button>
+        </div>
+        <section id="tab-over" class="tabpanel panel active" role="tabpanel" aria-labelledby="tabbtn-over">
+          <h3>상품 설명</h3>
+          <p id="pdesc" style="color:#444;line-height:1.7"></p>
+          <h3 style="margin-top:12px">특징</h3>
+          <ul id="pfeatures" style="margin:6px 0 0 18px;color:#334155;line-height:1.7"></ul>
+        </section>
+        <section id="tab-spec" class="tabpanel panel" role="tabpanel" aria-labelledby="tabbtn-spec">
+          <h3>기본 정보</h3>
+          <div class="kv" id="pspec" style="display:grid;grid-template-columns:130px 1fr;gap:8px"></div>
+        </section>
+        <section id="tab-rev" class="tabpanel panel reviews" role="tabpanel" aria-labelledby="tabbtn-rev">
+          <div id="reviewsWrap"></div>
+          <form id="reviewForm" style="margin-top:12px;display:grid;gap:8px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+              <label>별점
+                <select id="revStar">
+                  <option>5</option><option>4</option><option>3</option><option>2</option><option>1</option>
+                </select>
+              </label>
+              <input id="revName" placeholder="닉네임" style="flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:8px"/>
+              <button class="btn primary" type="submit">리뷰 등록</button>
+            </div>
+            <textarea id="revText" placeholder="사용 후기를 남겨주세요." style="border:1px solid var(--line);border-radius:8px;padding:10px;min-height:80px"></textarea>
+          </form>
+        </section>
+        <section id="tab-qa" class="tabpanel panel qa" role="tabpanel" aria-labelledby="tabbtn-qa">
+          <div id="qaWrap"></div>
+          <form id="qaForm" style="margin-top:12px;display:grid;gap:8px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <input id="qaName" placeholder="닉네임" style="flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:8px"/>
+              <button class="btn primary" type="submit">질문 등록</button>
+            </div>
+            <textarea id="qaText" placeholder="상품에 대해 궁금한 점을 작성하세요." style="border:1px solid var(--line);border-radius:8px;padding:10px;min-height:80px"></textarea>
+          </form>
+        </section>
+        <section id="tab-pol" class="tabpanel panel" role="tabpanel" aria-labelledby="tabbtn-pol">
+          <h3>거래/배송/환불 정책</h3>
+          <ul id="ppolicy" style="margin:6px 0 0 18px;color:#334155;line-height:1.7"></ul>
+        </section>
+      </section>
+    </div>
+
+    <aside class="side">
+    <section class="detail-card shadow tidy">
+    <!-- 상단: 제목 / 지역 / 찜 -->
+    <div class="detail-head">
+      <div>
+        <h1 id="ptitle" class="title big"></h1>
+        <div class="meta location"><span id="parea"></span> · 방금 전</div>
+      </div>
+      <button class="btn like-top icon" id="likeBtn">♡ 찜</button>
+    </div>
+  
+    <!-- 가격/상태 -->
+    <div class="price-box">
+      <div id="pprice" class="price big"></div>
+      <span class="chip tone" id="pcond">상태</span>
+    </div>
+  
+    <!-- 핵심 배지 -->
+    <div class="pill-row" id="pbadges"></div>
+  
+    <hr class="sep"/>
+  
+    <!-- 판매자 카드 -->
+    <a id="sellerLink" class="seller-link seller-card" href="#">
+      <div class="avatar lg" id="sellerAvatar"></div>
+      <div class="seller-info">
+        <strong id="sellerName">판매자</strong>
+        <div class="meta" id="sellerMeta"></div>
+      </div>
+      <span class="forward" aria-hidden="true">›</span>
+    </a>
+  
+    <!-- CTA -->
+    <div class="cta-row">
+      <button class="btn primary block" id="dealBtn">💬 채팅/거래하기</button>
+      <button class="btn block" id="copyLinkBtn">링크 복사</button>
+    </div>
+  </section>
+  
+
+      <section class="detail-card">
+        <h3 style="margin:0 0 8px">비슷한 매물</h3>
+        <div id="similar" class="grid" style="grid-template-columns:repeat(2,1fr)"></div>
+      </section>
+
+      <section class="detail-card">
+        <h3 style="margin:0 0 8px">최근 본 상품</h3>
+        <div id="recent" class="grid" style="grid-template-columns:repeat(2,1fr)"></div>
+      </section>
+    </aside>
+  </div>
+
+  <div class="bottombar">
+    <div class="container">
+      <button class="btn" id="likeBtnBottom">♡ 찜</button>
+      <button class="btn primary" id="dealBtnBottom">💬 채팅/거래하기</button>
+    </div>
+  </div>
+</main>
+
+<!-- SELLER PROFILE -->
+<main id="page-seller" class="container" aria-labelledby="seller-title">
+  <nav class="crumb">홈 · 판매자 · <span id="sNameCrumb"></span></nav>
+  <section class="detail-card">
+    <div class="seller-head">
+      <div class="avatar lg" id="sAvatar"></div>
+      <div>
+        <h1 id="sName" class="seller-title"></h1>
+        <div class="seller-stats" id="sMeta"></div>
+        <div class="seller-chips" id="sBadges"></div>
+        <div class="seller-chips"><button class="btn" id="sellerChatBtn">💬 판매자에게 문의</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section style="margin-top:12px">
+    <header class="section-title">
+      <h2>판매 상품</h2>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div id="sCatChips" class="seller-chips"></div>
+        <span class="chip" id="sCount">0건</span>
+      </div>
+    </header>
+    <div id="sellerGrid" class="grid goods"></div>
+  </section>
+</main>
+
+<!-- DEAL / CHAT -->
+<main id="page-deal" class="container" aria-labelledby="deal-title">
+  <nav class="crumb">홈 · 거래</nav>
+  <section class="detail-card">
+    <div class="deal-top">
+      <div class="deal-thumb"><img id="dThumb" alt=""></div>
+      <div>
+        <h2 id="dTitle" style="margin:0 0 4px"></h2>
+        <div class="deal-meta" id="dMeta"></div>
+        <div class="deal-actions">
+          <span class="chip" id="dStatus">요청됨</span>
+          <button class="btn" id="dConfirm">구매 확정</button>
+          <button class="btn ghost" id="dCancel">거래 취소</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="deal-form">
+      <div class="deal-row">
+        <strong>방식</strong>
+        <button class="chip" data-mode="직거래">직거래</button>
+        <button class="chip" data-mode="택배">택배</button>
+        <button class="chip" data-mode="안전결제">안전결제(데모)</button>
+      </div>
+      <div class="deal-row">
+        <strong>장소</strong>
+        <input id="dPlace" placeholder="예: 연산역 1번 출구 앞 / 우체국 택배" />
+      </div>
+      <div class="deal-row">
+        <strong>제안가</strong>
+        <input id="dOffer" inputmode="numeric" placeholder="예: 75,000" />
+      </div>
+    </div>
+
+    <div class="chat" style="margin-top:12px">
+      <div id="msgs" class="msgs"></div>
+      <div class="composer">
+        <input id="msgText" placeholder="메시지를 입력하세요."/>
+        <button class="btn primary" id="sendBtn">전송</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container foot">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:8px"><span class="badge" style="width:28px;height:28px;border-radius:8px">M</span><strong>마켓</strong></div>
+      <div>ⓒ 2025 마켓 · All rights reserved.</div>
+    </div>
+  </div>
+</footer>
+<script>
+/* ======================= 상수/카테고리 ======================= */
+const CATS=[{key:'digital',name:'디지털/가전'},{key:'life',name:'생활/가구'},{key:'hobby',name:'취미/게임'},{key:'child',name:'유아/의류'},{key:'sport',name:'스포츠/레저'},{key:'pet',name:'반려동물'}];
+const LABEL=Object.fromEntries(CATS.map(c=>[c.key,c.name]));
+
+/* ✅ 판매자 풀(고정) */
+const SELLERS=[
+  {id:'s1',name:'마켓셀러',since:'2021',trades:42,temp:36.5,resp:97,badges:['실명','동네인증'],avatar:'linear-gradient(135deg,#e2e8f0,#cbd5e1)',area:'연제구 연산동',bio:'연산동 중심으로 디지털/가구 위주 판매.'},
+  {id:'s2',name:'굿딜상점',since:'2020',trades:128,temp:38.2,resp:99,badges:['프리미엄','안전결제'],avatar:'linear-gradient(135deg,#fde68a,#fca5a5)',area:'해운대구 우동',bio:'우동 직거래 선호, 안전결제 환영.'},
+  {id:'s3',name:'부산_파워셀러',since:'2019',trades:312,temp:39.1,resp:96,badges:['우수판매자'],avatar:'linear-gradient(135deg,#93c5fd,#a7f3d0)',area:'부산진구 전포동',bio:'콘솔/보드게임 특화. 빠른 응답!'}
+];
+
+/* 샘플 베이스 */
+const BASE = [
+  { id: 1, title: '애플 노트북 맥북 프로 13', price: 650000, tag: 'digital', area: '부산진구 전포동', desc: 'M1/8GB/256GB, 생활기스 거의 없음', photos: ['https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 2, title: '원목 4인 식탁', price: 120000, tag: 'life', area: '해운대구 우동', desc: '이사 정리, 직거래만', photos: ['https://images.unsplash.com/photo-1519710164239-da123dc03ef4?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1519710161600-19e1e4f0e7f8?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1519710164204-4f1a4a2c7f9c?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 3, title: '닌텐도 스위치 OLED', price: 300000, tag: 'hobby', area: '수영구 광안동', desc: '패드 2개 + 젤다 포함', photos: ['https://images.unsplash.com/photo-1605901309584-818e25960a8b?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1606813907291-76a0d29f83ad?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1612036782180-6f0b2f0c6a4c?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 4, title: '유아 피규어 세트(10종)', price: 70000, tag: 'child', area: '사하구 장림동', desc: '안전성 테스트 완료, 모서리 라운딩', photos: ['https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=900&auto=format&fit=crop&q=70','https://images.unsplash.com/photo-1601758124511-52d02a2b03c7?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1520975693412-35a1f8e9d7e8?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 5, title: 'LG 55인치 TV', price: 350000, tag: 'digital', area: '동래구 명륜동', desc: '벽걸이 브라켓 포함', photos: ['https://images.unsplash.com/photo-1583225173936-3a63d7f52c16?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1485846234645-a62644f84728?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 6, title: '게이밍 의자', price: 90000, tag: 'life', area: '남구 대연동', desc: '리클라이닝 양호', photos: ['https://images.unsplash.com/photo-1598300053650-5d0d1df3b9f5?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1616628188460-4f2e1f908db8?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1603481588273-0a3ee3c3d5fe?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 7, title: '보드게임 모음', price: 60000, tag: 'hobby', area: '연제구 연산동', desc: '스플렌더/러브레터 등', photos: ['https://images.unsplash.com/photo-1511512578047-dfb367046420?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1550179403-7215e4f3c2e9?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1518445181636-7a44a269a6b3?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 8, title: '남성 청바지 30~31', price: 30000, tag: 'child', area: '금정구 장전동', desc: '스트레이트 핏, 사용감 적음', photos: ['https://images.unsplash.com/photo-1516826957135-700dedea698c?w=1200&auto=format&fit=crop&q=80'] },
+  { id: 9, title: '3인용 패브릭 소파', price: 180000, tag: 'life', area: '연제구 연산동', desc: '쿠션 포함, 생활오염 약간', photos: ['https://images.unsplash.com/photo-1549187774-b4e9b0445b06?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1554995207-c18c203602cb?w=1200&auto=format&fit=crop&q=80','https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=1200&auto=format&fit=crop&q=80'] }
+];
+
+/* ✅ 구-동 매핑 */
+const AREA_MAP = {
+  '부산진구': ['전포동'],
+  '사하구': ['장림동'],
+  '동래구': ['명륜동'],
+  '해운대구': ['우동'],
+  '남구': ['대연동'],
+  '연제구': ['연산동'],
+  '수영구': ['광안동'],
+  '금정구': ['장전동']
+};
+const GUS = Object.keys(AREA_MAP);
+
+const rnd=n=>Math.floor(Math.random()*n);
+const pick=a=>a[rnd(a.length)];
+
+/* 메타 생성 */
+function buildMeta(row, seller){
+  const policies=['택배시 선불/착불 선택 가능(도서산간 추가)','에스크로 결제 사용 시 인수확인 후 자동 정산','단순 변심 환불은 왕복 배송비 부담(수령 7일 이내)','제품 상태 상이/파손 시 판매자 귀책 교환·환불'];
+  let spec={},feats=[],cond=['A','A-','B+','B'][rnd(4)];
+  if(row.tag==='digital'){spec={브랜드:pick(['Apple','Samsung','LG','Xiaomi']),용량:pick(['64GB','128GB','256GB','512GB']),화면:pick(['11"','12.9"','55"','65"']),배터리건강:(85+rnd(15))+'%',모델명:'Smart Tab'};feats=['생활기스 미세','케이스/필름 포함','충전기 동봉','초기화 완료'];}
+  else if(row.tag==='life'){spec={재질:pick(['원목','패브릭','가죽','합판']),색상:pick(['내추럴','월넛','그레이','베이지']),크기:`${120+rnd(60)}×${60+rnd(20)}×${75+rnd(10)}cm`,구성:'본품/쿠션',브랜드:pick(['한샘','이케아','자코모','니토리'])};feats=['스크래치 약간','견고한 프레임','관리 쉬움'];}
+  else if(row.tag==='hobby'){spec={유형:(row.title.includes('스위치')?'게임콘솔':'보드게임'),구성:(row.title.includes('스위치')?'본체/조이콘×2/게임1':'카드/말/설명서'),연령:'만 12세+',보증:'미포함'};feats=['부속품 누락 없음','연휴에 딱','가족모임 추천'];}
+  else if(row.tag==='child'){spec={사이즈:pick(['100','110','120','130']),계절:pick(['봄/가을','겨울']),세탁:'완료',보풀:'거의 없음'};feats=['담요·마스크 증정','민감피부 OK','털빠짐 적음'];}
+  else if(row.tag==='sport'){spec={브랜드:pick(['Nike','Adidas','Mizuno']),사이즈:pick(['260','265','270','275']),용도:'잔디/풋살',마모도:pick(['하','중','상'])};feats=['미끄럼 적음','가벼운 착화감','풋살 전용 깔창 포함'];}
+  else if(row.tag==='pet'){spec={권장체중:'~7kg',재질:'방수 패브릭',환기:'메쉬 3면',세탁:'부분세탁'};feats:['환기 우수','바닥미끄럼방지','어깨끈 패드 포함'];}
+  const sellerMeta={id:seller.id,name:seller.name,since:seller.since,trades:seller.trades,temp:seller.temp,resp:seller.resp,badges:[...seller.badges],avatar:seller.avatar,area:seller.area};
+  return {cond,spec,feats,seller:sellerMeta,policies,photos:row.photos,featuresText:row.desc+' · 사용감 적고 테스트 완료.'};
+}
+
+/* ✅ 데이터 생성 + 판매자 배정 */
+const DATA=[]; let seq=1;
+for(let i=0;i<9;i++){
+  for(const b of BASE){
+    const gu = pick(GUS);
+    const dong = pick(AREA_MAP[gu]);
+    const area = `${gu} ${dong}`;
+    const price = Math.max(5000,Math.round(b.price*(0.6+0.8*Math.random())/1000)*1000);
+    const seller=SELLERS[(seq)%SELLERS.length];
+    const row={id:seq++,title:b.title,price,tag:b.tag,area,desc:b.desc,photos:b.photos,sellerId:seller.id};
+    row.__meta=buildMeta(row,seller);
+    DATA.push(row);
+  }
+}
+
+/* ======================= 상태/라우터 ======================= */
+const state={q:'',cat:'all',min:null,max:null,sort:'rel',cursor:0,size:16,total:0,rows:[],likes:new Set(JSON.parse(localStorage.getItem('likes')||'[]')),recent:JSON.parse(localStorage.getItem('recent')||'[]')};
+
+const router={
+  parse(){
+    const h=location.hash||'#/'; let m;
+    if(m=h.match(/^#\/product\/(\d+)/)) return {page:'detail',id:+m[1]};
+    if(m=h.match(/^#\/seller\/([\w-]+)/)) return {page:'seller',sid:m[1]};
+    if(m=h.match(/^#\/deal\/(\d+)/)) return {page:'deal',pid:+m[1]};
+    if(m=h.match(/^#\/market(?:\?(.*))?$/)){
+      const sp=new URLSearchParams(m[1]||'');
+      return {page:'home',params:{q:sp.get('q')||'',cat:sp.get('cat')||'all',min:sp.has('min')?+sp.get('min'):null,max:sp.has('max')?+sp.get('max'):null,sort:sp.get('sort')||'rel'}};
+    }
+    return {page:'landing'};
+  },
+  gotoHome(params={}){
+    const p=new URLSearchParams();
+    if(params.q)p.set('q',params.q);
+    if(params.cat&&params.cat!=='all')p.set('cat',params.cat);
+    if(params.min!=null)p.set('min',params.min);
+    if(params.max!=null)p.set('max',params.max);
+    if(params.sort&&params.sort!=='rel')p.set('sort',params.sort);
+    location.hash='#/market'+(p.toString()?('?'+p.toString()):'');
+  },
+  apply(){
+    const st=this.parse();
+    document.getElementById('landing').style.display=(st.page==='landing')?'block':'none';
+    document.getElementById('page-home').style.display=(st.page==='home')?'block':'none';
+    document.getElementById('page-detail').classList.toggle('active',st.page==='detail');
+    document.getElementById('page-seller').classList.toggle('active',st.page==='seller');
+    document.getElementById('page-deal').classList.toggle('active',st.page==='deal');
+    if(st.page==='home'){
+      Object.assign(state,st.params,{cursor:0,rows:[]});
+      syncFacet(); runSearch(true);
+    } else if(st.page==='detail'){
+      renderDetail(st.id); window.scrollTo({top:0,behavior:'instant'});
+    } else if(st.page==='seller'){
+      renderSeller(st.sid); window.scrollTo({top:0,behavior:'instant'});
+    } else if(st.page==='deal'){
+      renderDeal(st.pid); window.scrollTo({top:0,behavior:'instant'});
+    }
+  }
+};
+window.addEventListener('hashchange',()=>router.apply());
+
+/* ======================= 검색/정렬/필터 ======================= */
+function parseTokens(q){
+  const toks=(q||'').trim().split(/\s+/).filter(Boolean);
+  let f={words:[],tag:null,area:null,cmp:[]};
+  for(const t of toks){
+    let m;
+    if(m=t.match(/^tag:(.+)$/i)){f.tag=m[1].toLowerCase();continue;}
+    if(m=t.match(/^area:(.+)$/i)){f.area=m[1];continue;}
+    if(m=t.match(/^price:(\d+)-(\d+)$/i)){f.cmp.push({op:'>=',v:+m[1]},{op:'<=',v:+m[2]});continue;}
+    if(m=t.match(/^price([<>]=?)(\d+)$/i)){f.cmp.push({op:m[1],v:+m[2]});continue;}
+    f.words.push(t.toLowerCase());
+  }
+  return f;
+}
+function matchRow(r,f){
+  if(f.tag&&r.tag!==f.tag)return false;
+  if(f.area&&!r.area.includes(f.area))return false;
+  for(const w of f.words){
+    const hay=(r.title+' '+r.desc+' '+r.area).toLowerCase();
+    if(!hay.includes(w))return false;
+  }
+  for(const c of f.cmp){
+    if(c.op==='<'&&!(r.price<c.v))return false;
+    if(c.op==='>'&&!(r.price>c.v))return false;
+    if(c.op==='<='){if(!(r.price<=c.v))return false;}
+    if(c.op=== '>='){if(!(r.price>=c.v))return false;}
+  }
+  return true;
+}
+function score(r,f){
+  let s=0;
+  for(const w of f.words){
+    if(r.title.toLowerCase().includes(w))s+=3;
+    if(r.desc.toLowerCase().includes(w))s+=1;
+    if(r.area.toLowerCase().includes(w))s+=1;
+  }
+  return s;
+}
+function runSearch(reset){
+  if(reset){state.cursor=0;state.rows=[];}
+  const f=parseTokens(state.q);
+  let rows=DATA.filter(r=>matchRow(r,f));
+  if(state.cat!=='all')rows=rows.filter(r=>r.tag===state.cat);
+  if(state.min!=null)rows=rows.filter(r=>r.price>=state.min);
+  if(state.max!=null)rows=rows.filter(r=>r.price<=state.max);
+  if(state.sort==='price_asc')rows.sort((a,b)=>a.price-b.price);
+  else if(state.sort==='price_desc')rows.sort((a,b)=>b.price-a.price);
+  else if(state.sort==='new')rows.sort((a,b)=>b.id-a.id);
+  else if(f.words.length){rows.sort((a,b)=>score(b,f)-score(a,f));}
+  state.total=rows.length;
+  const slice=rows.slice(state.cursor,state.cursor+state.size);
+  state.rows=state.rows.concat(slice);
+  state.cursor+=state.size;
+  renderList(reset);
+  handleSentinel(state.cursor<state.total);
+}
+
+/* ======================= 좌측 패싯 ======================= */
+function renderFacet(){
+  const counts=Object.fromEntries(CATS.map(c=>[c.key,0]));
+  for(const r of DATA)counts[r.tag]++;
+  const wrap=document.getElementById('facet-cats');
+  wrap.innerHTML=
+    `<label><input type="radio" name="cat" value="all"><span>전체</span><span class="count">${DATA.length}</span></label>`+
+    CATS.map(c=>`<label><input type="radio" name="cat" value="${c.key}"><span>${c.name}</span><span class="count">${counts[c.key]}</span></label>`).join('');
+  document.querySelectorAll('#facet-cats input[name="cat"]').forEach(r=>r.addEventListener('change',()=>{state.cat=r.value;router.gotoHome(state);})); 
+  document.querySelectorAll('#facet-sort input[name="sort"]').forEach(r=>r.addEventListener('change',()=>{state.sort=r.value;router.gotoHome(state);})); 
+  document.getElementById('applyPrice').addEventListener('click',()=>{
+    const mi=document.getElementById('minPrice').value?+document.getElementById('minPrice').value:null;
+    const ma=document.getElementById('maxPrice').value?+document.getElementById('maxPrice').value:null;
+    state.min=mi; state.max=ma; router.gotoHome(state);
+  });
+  document.getElementById('clearPrice').addEventListener('click',()=>{
+    state.min=state.max=null; document.getElementById('minPrice').value=''; document.getElementById('maxPrice').value=''; router.gotoHome(state);
+  });
+}
+function syncFacet(){
+  document.getElementById('q').value=state.q;
+  document.getElementById('minPrice').value=state.min??'';
+  document.getElementById('maxPrice').value=state.max??'';
+  document.querySelectorAll('#facet-cats input[name="cat"]').forEach(r=>r.checked=(r.value===state.cat));
+  document.querySelectorAll('#facet-sort input[name="sort"]').forEach(r=>r.checked=(r.value===state.sort));
+  document.getElementById('resultTitle').textContent=(state.cat==='all'?'전체':LABEL[state.cat])+' 매물';
+}
+
+/* ======================= 카드 리스트 ======================= */
+const fmt=n=>new Intl.NumberFormat('ko-KR').format(n)+'원';
+function makeCardEl(m){
+  const el=document.createElement('article');
+  const badgeTxt=(m.__meta.cond||'A').startsWith('A')?'상태 A급':'상태 양호';
+  el.className='card';
+  el.innerHTML=
+    `<div class="thumb">
+       <img loading="lazy" alt="${m.title}" src="${m.photos[0]||''}">
+       <span class="badge-corner">${badgeTxt}</span>
+       <button class="like">${state.likes.has(m.id)?'❤ 찜':'♡ 찜'}</button>
+     </div>
+     <div class="meta">
+       <div class="price">${fmt(m.price)}</div>
+       <div class="title">${m.title}</div>
+       <div class="desc">${m.area} · ${m.desc}</div>
+     </div>`;
+  const img=el.querySelector('img');
+  img.onerror=()=>{const box=img.parentElement; box.classList.add('noimg'); img.remove();};
+  el.querySelector('.like').addEventListener('click',(e)=>{e.stopPropagation();toggleLike(e.currentTarget,m.id);});
+  el.addEventListener('click',()=>location.hash=`#/product/${m.id}`);
+  return el;
+}
+function renderList(reset){
+  const grid=document.getElementById('grid');
+  const info=document.getElementById('resultInfo');
+  const empty=document.getElementById('empty');
+  const moreWrap=document.getElementById('moreWrap');
+  if(reset)grid.innerHTML='';
+  const start=state.rows.length-state.size<0?0:state.rows.length-state.size;
+  const slice=state.rows.slice(start);
+  const frag=document.createDocumentFragment();
+  for(const m of slice){frag.appendChild(makeCardEl(m));}
+  grid.appendChild(frag);
+  info.textContent=`${state.total.toLocaleString()}건`;
+  empty.style.display=state.total?'none':'block';
+  moreWrap.style.display=(state.cursor<state.total && !sentinelActive)?'flex':'none';
+}
+function toggleLike(btn,id){
+  if(state.likes.has(id)){state.likes.delete(id);btn.textContent='♡ 찜';}
+  else{state.likes.add(id);btn.textContent='❤ 찜';}
+  localStorage.setItem('likes',JSON.stringify([...state.likes]));
+}
+function toggleLikeDetail(btn,id){
+  toggleLike(btn,id);
+  document.getElementById('likeBtn').textContent=state.likes.has(id)?'❤ 찜':'♡ 찜';
+  const b=document.getElementById('likeBtnBottom'); if(b) b.textContent=state.likes.has(id)?'❤ 찜':'♡ 찜';
+}
+
+/* ======================= 상세 ======================= */
+function getSimilarItems(item){
+  let list=DATA.filter(r=>r.tag===item.tag && r.id!==item.id);
+  if(list.length<4){
+    const extra=DATA.filter(r=>r.id!==item.id)
+      .sort((a,b)=>Math.abs(a.price-item.price)-Math.abs(b.price-item.price));
+    for(const x of extra){ if(!list.includes(x)) list.push(x); if(list.length>=4) break; }
+  }
+  return list.slice(0,4);
+}
+function renderDetail(id){
+  const item=DATA.find(r=>r.id===id);
+  if(!item){alert('상품을 찾을 수 없습니다.'); router.gotoHome({}); return;}
+  state.recent=[id,...state.recent.filter(x=>x!==id)].slice(0,8);
+  localStorage.setItem('recent',JSON.stringify(state.recent));
+
+  const meta=item.__meta;
+  document.getElementById('ptitle').textContent=item.title;
+  document.getElementById('pprice').textContent=fmt(item.price);
+  document.getElementById('parea').textContent=item.area;
+  document.getElementById('pcond').textContent='상태 '+meta.cond;
+  document.getElementById('pbadges').innerHTML=['🔒 안전결제','🚚 택배/직거래','✔ 실명 인증'].map(t=>`<span class="chip">${t}</span>`).join('');
+
+  const likeBtn=document.getElementById('likeBtn');
+  likeBtn.textContent=state.likes.has(item.id)?'❤ 찜':'♡ 찜';
+  likeBtn.onclick=()=>toggleLikeDetail(likeBtn,item.id);
+
+  const bottomBtn=document.getElementById('likeBtnBottom');
+  if(bottomBtn){
+    bottomBtn.textContent=state.likes.has(item.id)?'❤ 찜':'♡ 찜';
+    bottomBtn.onclick=()=>toggleLikeDetail(likeBtn,item.id);
+  }
+
+  // 판매자 링크/정보
+  const s=meta.seller;
+  const sLink=document.getElementById('sellerLink');
+  sLink.href=`#/seller/${item.sellerId}`;
+  document.getElementById('sellerName').textContent=s.name;
+  document.getElementById('sellerMeta').textContent=`${s.area} · 거래 ${s.trades} · 응답률 ${s.resp}% · 매너온도 ${s.temp}° · since ${s.since}`;
+  document.getElementById('sellerAvatar').style.background=s.avatar;
+
+  document.getElementById('crumb-cat').textContent=LABEL[item.tag]||item.tag;
+  document.getElementById('crumb-title').textContent=item.title;
+
+  // 갤러리
+  const heroBox=document.getElementById('heroBox'); const hero=document.getElementById('heroImg');
+  heroBox.classList.remove('noimg'); hero.src='';
+  if(item.photos && item.photos.length){
+    hero.src=item.photos[0];
+    hero.onerror=()=>{heroBox.classList.add('noimg'); hero.removeAttribute('src');};
+  } else { heroBox.classList.add('noimg'); }
+  const tWrap=document.getElementById('thumbs'); const thumbs=item.photos||[];
+  tWrap.innerHTML=thumbs.map((u,i)=>`<button aria-label="thumb ${i+1}"><img loading="lazy" src="${u}" alt=""></button>`).join('');
+  document.querySelectorAll('#thumbs button').forEach(b=>b.addEventListener('click',()=>{heroBox.classList.remove('noimg'); hero.src=b.querySelector('img').src;}));
+
+  // 탭 + 콘텐츠
+  document.getElementById('pdesc').textContent=meta.featuresText;
+  document.getElementById('pfeatures').innerHTML=meta.feats.map(x=>`<li>${x}</li>`).join('');
+  document.getElementById('ppolicy').innerHTML=meta.policies.map(x=>`<li>${x}</li>`).join('');
+  const specKV=document.getElementById('pspec');
+  specKV.innerHTML=Object.entries(meta.spec).map(([k,v])=>`<div>${k}</div><div>${v}</div>`).join('');
+  const rKey=`rev_${id}`;
+  if(!localStorage.getItem(rKey)){
+    localStorage.setItem(rKey,JSON.stringify([{n:'부산*덕',s:5,t:'거의 새것이에요. 포장도 깔끔!'}, {n:'연제*맘',s:4,t:'사진보다 실물이 더 예쁨. 추천합니다.'}]));
+  }
+  drawReviews(id);
+  const qKey=`qa_${id}`;
+  if(!localStorage.getItem(qKey)){
+    localStorage.setItem(qKey,JSON.stringify([{n:'익명',q:'직거래 가능할까요?',a:'네, 연산동 주말 가능해요.'},{n:'사용자',q:'택배 시 박스포장 되나요?',a:'완충재+이중포장으로 발송합니다.'}]));
+  }
+  drawQA(id);
+  bindTabs();
+
+  // 유사/최근
+  const similar=getSimilarItems(item);
+  document.getElementById('similar').innerHTML=similar.map(s=>`<a class="card" href="#/product/${s.id}">
+    <div class="thumb"><img loading="lazy" src="${s.photos[0]||''}" alt="${s.title}"></div>
+    <div class="meta"><div class="title" style="font-weight:800">${s.title}</div><div>${fmt(s.price)}</div></div>
+  </a>`).join('');
+  document.querySelectorAll('#similar img').forEach(img=>img.onerror=()=>{img.parentElement.classList.add('noimg'); img.remove();});
+
+  const recItems=state.recent.filter(x=>x!==id).map(i=>DATA.find(r=>r.id===i)).filter(Boolean).slice(0,4);
+  const recentBox=document.getElementById('recent');
+  recentBox.innerHTML=recItems.length?recItems.map(s=>`<a class="card" href="#/product/${s.id}">
+    <div class="thumb"><img loading="lazy" src="${s.photos[0]||''}" alt="${s.title}"></div>
+    <div class="meta"><div class="title" style="font-weight:800">${s.title}</div><div>${fmt(s.price)}</div></div>
+  </a>`).join(''):'<div class="meta" style="color:#64748b">최근 본 상품이 없습니다.</div>';
+
+  document.querySelectorAll('#recent img').forEach(img => {
+  img.onerror = () => {
+    const box = img.parentElement;
+    box.classList.add('noimg'); // .thumb.noimg::after 가 "전시 준비중"을 표시함
+    img.remove();
+  };
+});
+
+  // 거래 버튼
+  document.getElementById('dealBtn').onclick=()=>startDeal(id);
+  const db=document.getElementById('dealBtnBottom'); if(db) db.onclick=()=>startDeal(id);
+
+  // 링크 복사
+  document.getElementById('copyLinkBtn').onclick=()=>{
+    navigator.clipboard?.writeText(location.href).then(()=>alert('링크가 복사되었습니다.'));
+  };
+}
+
+/* ======================= 판매자 프로필 ======================= */
+function renderSeller(sid, cat='all'){
+  const s=SELLERS.find(x=>x.id===sid);
+  if(!s){alert('판매자를 찾을 수 없습니다.'); router.gotoHome({}); return;}
+  document.getElementById('sNameCrumb').textContent=s.name;
+  document.getElementById('sName').textContent=s.name;
+  document.getElementById('sAvatar').style.background=s.avatar;
+  document.getElementById('sMeta').textContent=`${s.area} · 거래 ${s.trades} · 응답률 ${s.resp}% · 매너온도 ${s.temp}° · since ${s.since}`;
+  document.getElementById('sBadges').innerHTML=s.badges.map(b=>`<span class="chip">✔ ${b}</span>`).join('');
+  document.getElementById('sellerChatBtn').onclick=()=>{
+    const any=DATA.find(r=>r.sellerId===sid) || DATA[0];
+    startDeal(any.id);
+  };
+
+  const all=DATA.filter(r=>r.sellerId===sid);
+  const byCat=Object.fromEntries(CATS.map(c=>[c.key,0]));
+  all.forEach(r=>byCat[r.tag]++);
+  const chips=document.getElementById('sCatChips');
+  const totalLabel=`전체 ${all.length}건`;
+  chips.innerHTML=
+    `<button class="chip ${cat==='all'?'active':''}" data-cat="all">${totalLabel}</button>`+
+    CATS.filter(c=>byCat[c.key]>0).map(c=>`<button class="chip ${cat===c.key?'active':''}" data-cat="${c.key}">${LABEL[c.key]} ${byCat[c.key]}건</button>`).join('');
+  chips.querySelectorAll('.chip').forEach(btn=>{ btn.onclick=()=>{renderSeller(sid, btn.dataset.cat);} });
+
+  const list=(cat==='all')?all:all.filter(r=>r.tag===cat);
+  document.getElementById('sCount').textContent=`${list.length}건`;
+  const grid=document.getElementById('sellerGrid'); grid.innerHTML='';
+  const frag=document.createDocumentFragment();
+  list.forEach(m=>frag.appendChild(makeCardEl(m)));
+  grid.appendChild(frag);
+}
+
+/* ======================= 거래/채팅 ======================= */
+function startDeal(pid){ location.hash=`#/deal/${pid}`; }
+
+function ensureDeal(pid){
+  const item=DATA.find(r=>r.id===pid);
+  const key=`deal_${pid}`;
+  if(!localStorage.getItem(key)){
+    const init={
+      pid,
+      status:'요청됨',
+      mode:'직거래',
+      place:item.area,
+      offer:item.price,
+      msgs:[
+        {who:'other',text:`안녕하세요, ${item.__meta.seller.name}입니다. 문의 주시면 빠르게 답장드릴게요.`,ts:Date.now()}
+      ]
+    };
+    localStorage.setItem(key,JSON.stringify(init));
+  }
+  return key;
+}
+
+/* === 간단한 대화 이해 로직 === */
+function parsePriceKR(text){
+  // 7만 / 7.5만 / 75,000 / 75000 / 7만5천
+  let t=text.replace(/\s+/g,'').toLowerCase();
+  const numComma=t.match(/(\d{1,3}(?:,\d{3})+|\d+)\s*원?/);
+  if(numComma){ return Math.max(0, parseInt(numComma[1].replace(/,/g,''),10)); }
+  const man=t.match(/(\d+(?:\.\d+)?)\s*만/);
+  if(man){ return Math.round(parseFloat(man[1])*10000); }
+  const manCheon=t.match(/(\d+)\s*만\s*(\d+)\s*천?/);
+  if(manCheon){ return parseInt(manCheon[1],10)*10000 + parseInt(manCheon[2],10)*1000; }
+  return null;
+}
+function containsAny(t, arr){ t=t.toLowerCase(); return arr.some(k=>t.includes(k)); }
+function roundK(n){ return Math.max(1000, Math.round(n/1000)*1000); }
+
+function autoReplyFor(text, item, deal){
+  const low=text.toLowerCase();
+  const price=item.price;
+  const offer=parsePriceKR(text);
+  const wantsDiscount = containsAny(low,['할인','네고','에눌','가격','dc','좀빼','깎']);
+  const wantsMode = containsAny(low,['직거래','택배','안전결제']);
+  const timeHint = /(\d{1,2})\s*시(\s*\d{1,2}\s*분)?|몇\s*시|오후|저녁|아침/.test(low);
+  const placeHint = containsAny(low,['어디','장소','역','만나요','만나','위치']);
+
+  // 1) 가격 제안/할인
+  if(offer!=null || wantsDiscount){
+    if(offer==null){
+      return `할인 가능 범위를 알려주시면 검토해볼게요. 보통 ${fmt(roundK(price*0.95))} 근처에서 많이 거래돼요.`;
+    }
+    deal.offer=offer;
+    if(offer >= price*0.95){
+      deal.status='가격 합의';
+      return `네, ${fmt(offer)}에 드릴게요. ${deal.mode}로 진행할까요? 가능한 시간도 알려주세요.`;
+    }
+    if(offer >= price*0.85){
+      const counter=roundK((offer + price*0.95)/2);
+      deal.offer=counter;
+      return `그 가격은 조금 어려워서 ${fmt(counter)}이면 바로 거래 가능해요. 괜찮으세요?`;
+    }
+    const min=roundK(price*0.9);
+    deal.offer=min;
+    return `그 정도로는 어렵고, 최저가가 ${fmt(min)}입니다. 가능하시면 진행할게요.`;
+  }
+
+  // 2) 거래 방식
+  if(wantsMode){
+    if(low.includes('직거래')) deal.mode='직거래';
+    if(low.includes('택배')) deal.mode='택배';
+    if(low.includes('안전결제')) deal.mode='안전결제';
+    return `${deal.mode} 확인했습니다. ${deal.mode==='직거래'?'가능한 장소와 시간':'받으실 주소와 성함/연락처'} 알려주세요.`;
+  }
+
+  // 3) 시간/장소
+  const defaultPlace = item.area.replace(/ .*/,'')+'역 1번 출구';
+  if(timeHint && !placeHint){
+    return `시간 좋습니다. 장소는 ${defaultPlace} 어떠세요?`;
+  }
+  if(placeHint && !timeHint){
+    return `장소는 ${defaultPlace} 제안드려요. 가능하신 시간대를 알려주세요.`;
+  }
+
+  // 4) 기타
+  return `네, 확인했습니다. ${deal.mode==='직거래'?'가능한 시간과 장소':'받으실 주소'} 알려주시면 진행하겠습니다.`;
+}
+
+function renderDeal(pid){
+  const item=DATA.find(r=>r.id===pid);
+  if(!item){alert('거래 상품을 찾을 수 없습니다.'); router.gotoHome({}); return;}
+  const key=ensureDeal(pid);
+  const deal=JSON.parse(localStorage.getItem(key));
+
+  // 상단 정보
+  document.getElementById('dThumb').src=item.photos[0]||'';
+  document.getElementById('dTitle').textContent=item.title;
+  document.getElementById('dMeta').textContent=`${item.__meta.seller.name} · ${fmt(item.price)} · ${item.area}`;
+  document.getElementById('dStatus').textContent=deal.status;
+  document.getElementById('dPlace').value=deal.place||'';
+  document.getElementById('dOffer').value=deal.offer||'';
+
+  // 방식 선택
+  document.querySelectorAll('.deal-row [data-mode]').forEach(b=>{
+    b.classList.toggle('active', b.dataset.mode===deal.mode);
+    b.onclick=()=>{deal.mode=b.dataset.mode; saveDeal(); renderDeal(pid);};
+  });
+
+  // 입력 핸들러
+  document.getElementById('dPlace').onchange=(e)=>{deal.place=e.target.value; saveDeal();};
+  document.getElementById('dOffer').onchange=(e)=>{deal.offer=e.target.value; saveDeal();};
+
+  // 상태 버튼
+  document.getElementById('dConfirm').onclick=()=>{deal.status='구매 확정'; addMsg('me','구매 확정합니다.'); saveDeal(); renderDeal(pid);};
+  document.getElementById('dCancel').onclick=()=>{deal.status='거래 취소'; addMsg('me','죄송합니다. 거래 취소할게요.'); saveDeal(); renderDeal(pid);};
+
+  // 메시지 렌더
+  const box=document.getElementById('msgs');
+  box.innerHTML=deal.msgs.map(m=>`<div class="msg ${m.who}">${m.text}</div>`).join('');
+  box.scrollTop=box.scrollHeight;
+
+  // 전송
+  document.getElementById('sendBtn').onclick=send;
+  document.getElementById('msgText').onkeydown=(e)=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}};
+  function send(){
+    const v=document.getElementById('msgText').value.trim();
+    if(!v) return;
+    addMsg('me',v); document.getElementById('msgText').value='';
+    // 똑똑한 자동응답
+    const reply=autoReplyFor(v,item,deal);
+    setTimeout(()=>{ addMsg('other',reply); saveDeal(); renderDeal(pid); },500);
+    saveDeal(); renderDeal(pid);
+  }
+
+  function addMsg(who,text){ deal.msgs.push({who,text,ts:Date.now()}); }
+  function saveDeal(){ localStorage.setItem(key,JSON.stringify(deal)); }
+}
+
+/* 리뷰 / QA */
+function drawReviews(id){
+  const rKey=`rev_${id}`;
+  const list=JSON.parse(localStorage.getItem(rKey)||'[]');
+  const w=document.getElementById('reviewsWrap');
+  w.innerHTML=list.map(r=>`<div class="item"><div class="stars">${'★'.repeat(r.s)}${'☆'.repeat(5-r.s)}</div><div><strong>${r.n}</strong></div><div>${r.t}</div></div>`).join('')||'<div class="item">아직 리뷰가 없습니다.</div>';
+  document.getElementById('reviewForm').onsubmit=(e)=>{
+    e.preventDefault();
+    const s=+document.getElementById('revStar').value||5;
+    const n=(document.getElementById('revName').value||'익명').slice(0,12);
+    const t=(document.getElementById('revText').value||'').trim();
+    if(!t){alert('후기를 입력해주세요.');return;}
+    const arr=JSON.parse(localStorage.getItem(rKey)||'[]');
+    arr.unshift({n:n,s:s,t:t});
+    localStorage.setItem(rKey,JSON.stringify(arr));
+    document.getElementById('revText').value='';
+    drawReviews(id);
+  };
+}
+function drawQA(id){
+  const qKey=`qa_${id}`;
+  const list=JSON.parse(localStorage.getItem(qKey)||'[]');
+  const w=document.getElementById('qaWrap');
+  w.innerHTML=list.map(q=>`<div class="item" style="padding:10px 0;border-bottom:1px dashed #eaecef"><div class="q">Q. ${q.q} — <small>${q.n}</small></div><div class="a">A. ${q.a||'판매자가 확인 중입니다.'}</div></div>`).join('');
+  document.getElementById('qaForm').onsubmit=(e)=>{
+    e.preventDefault();
+    const n=(document.getElementById('qaName').value||'익명').slice(0,12);
+    const t=(document.getElementById('qaText').value||'').trim();
+    if(!t){alert('질문을 입력해주세요.');return;}
+    const arr=JSON.parse(localStorage.getItem(qKey)||'[]');
+    arr.unshift({n:n,q:t,a:''});
+    localStorage.setItem(qKey,JSON.stringify(arr));
+    document.getElementById('qaText').value='';
+    drawQA(id);
+  };
+}
+
+/* 탭 */
+function bindTabs(){
+  ['over','spec','rev','qa','pol'].forEach(k=>{
+    const btn=document.getElementById('tabbtn-'+k);
+    btn.onclick=()=>{
+      document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected','false'));
+      btn.setAttribute('aria-selected','true');
+      document.querySelectorAll('.tabpanel').forEach(p=>p.classList.remove('active'));
+      document.getElementById('tab-'+k).classList.add('active');
+    };
+  });
+}
+
+/* 무한스크롤 */
+let sentinelActive=false, io=null;
+function handleSentinel(on){
+  const s=document.getElementById('sentinel');
+  const moreWrap=document.getElementById('moreWrap');
+  if(on && !sentinelActive){
+    try{
+      io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting))runSearch(false);},{rootMargin:'280px'});
+      io.observe(s); sentinelActive=true; moreWrap.style.display='none';
+    }catch{ sentinelActive=false; moreWrap.style.display='flex';}
+  } else if(!on && sentinelActive){
+    io.disconnect(); io=null; sentinelActive=false; moreWrap.style.display='none';
+  }
+  document.getElementById('moreBtn').onclick=()=>runSearch(false);
+}
+
+/* 전역 검색 + 초기화 버튼 */
+function doSearch(){state.q=(document.getElementById('q').value||'').trim(); router.gotoHome(state);}
+window.doSearch=doSearch;
+
+document.getElementById('resetAll').addEventListener('click',()=>{
+  state.q=''; state.cat='all'; state.min=null; state.max=null; state.sort='rel';
+  document.getElementById('q').value='';
+  router.gotoHome(state);
+});
+
+/* 초기 설정 */
+(function init(){
+  if(!location.hash) location.hash='#/';
+  renderFacet();
+  router.apply();
+})();
+</script>
+</body>
+</html>
